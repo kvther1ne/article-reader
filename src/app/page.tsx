@@ -8,18 +8,54 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function Chat() {
   const [input, setInput] = useState("");
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
+
   const { messages, sendMessage, status, error, clearError } = useChat();
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const isBusy = status === "submitted" || status === "streaming";
+  const isBusy =
+    isExtracting || status === "submitted" || status === "streaming";
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!input.trim()) return;
+
     clearError();
+    setExtractError(null);
+
+    const value = input.trim();
+
+    if (URL.canParse(value)) {
+      setIsExtracting(true);
+
+      try {
+        const res = await fetch("/api/extract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: value }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          setExtractError(data.error);
+          return;
+        }
+
+        sendMessage({ text: `${data.title}\n\n${data.text}` });
+        setInput("");
+      } catch {
+        setExtractError("Failed to load article");
+      } finally {
+        setIsExtracting(false);
+      }
+      return;
+    }
+
     sendMessage({ text: input });
     setInput("");
   };
@@ -36,26 +72,25 @@ export default function Chat() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl p-6 space-y-6">
+    <div className="mx-auto w-full max-w-3xl p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Article Reader</h1>
 
       <div className="space-y-4 pb-32">
-        {messages.map((message) => (
-          <Card key={message.id}>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-2">
-                {message.role === "user" ? "Article" : "Summary"}
-              </p>
-              <div className="whitespace-pre-wrap text-sm">
-                {message.parts.map((part, i) =>
-                  part.type === "text" ? (
-                    <span key={i}>{part.text}</span>
-                  ) : null,
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        {messages
+          .filter((m) => m.role === "assistant")
+          .map((message) => (
+            <Card key={message.id}>
+              <CardContent className="p-4">
+                <div className="whitespace-pre-wrap text-sm">
+                  {message.parts.map((part, i) =>
+                    part.type === "text" ? (
+                      <span key={i}>{part.text}</span>
+                    ) : null,
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         <div ref={bottomRef} />
       </div>
 
@@ -74,8 +109,16 @@ export default function Chat() {
             <p className="text-sm text-destructive">{error?.message}</p>
           )}
 
+          {extractError && (
+            <p className="text-sm text-destructive">{extractError}</p>
+          )}
+
           <Button onClick={handleSubmit} disabled={isBusy}>
-            {isBusy ? "Processing..." : "Make a summary"}
+            {isExtracting
+              ? "Loading article..."
+              : isBusy
+                ? "Processing..."
+                : "Make a summary"}
           </Button>
         </div>
       </div>
