@@ -1,38 +1,35 @@
 "use client";
 
-import { useChat } from "@ai-sdk/react";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import type { TSummaryType } from "@/lib/schemas";
 
 export default function Chat() {
   const [input, setInput] = useState("");
-  const [isExtracting, setIsExtracting] = useState(false);
-  const [extractError, setExtractError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [summaries, setSummaries] = useState<TSummaryType[]>([]);
 
-  const { messages, sendMessage, status, error, clearError } = useChat();
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  const isBusy =
-    isExtracting || status === "submitted" || status === "streaming";
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [summaries]);
 
   const handleSubmit = async () => {
     if (!input.trim()) return;
-
-    clearError();
-    setExtractError(null);
+    setError(null);
+    setIsLoading(true);
 
     const value = input.trim();
 
-    if (URL.canParse(value)) {
-      setIsExtracting(true);
+    try {
+      let text = value;
 
-      try {
+      if (URL.canParse(value)) {
         const res = await fetch("/api/extract", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -42,22 +39,33 @@ export default function Chat() {
         const data = await res.json();
 
         if (!res.ok) {
-          setExtractError(data.error);
+          setError(data.error);
           return;
         }
 
-        sendMessage({ text: `${data.title}\n\n${data.text}` });
-        setInput("");
-      } catch {
-        setExtractError("Failed to load article");
-      } finally {
-        setIsExtracting(false);
+        text = `${data.title}\n\n${data.text}`;
       }
-      return;
-    }
 
-    sendMessage({ text: input });
-    setInput("");
+      const res = await fetch("/api/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error);
+        return;
+      }
+
+      setSummaries((prev) => [...prev, data]);
+      setInput("");
+    } catch {
+      setError("Something went wrong");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -76,21 +84,41 @@ export default function Chat() {
       <h1 className="text-2xl font-semibold">Article Reader</h1>
 
       <div className="space-y-4 pb-32">
-        {messages
-          .filter((m) => m.role === "assistant")
-          .map((message) => (
-            <Card key={message.id}>
-              <CardContent className="p-4">
-                <div className="whitespace-pre-wrap text-sm">
-                  {message.parts.map((part, i) =>
-                    part.type === "text" ? (
-                      <span key={i}>{part.text}</span>
-                    ) : null,
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        {summaries.map((item, i) => (
+          <Card key={i}>
+            <CardContent className="p-6 space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold">{item.title}</h2>
+
+                <p className="text-sm text-muted-foreground mt-1">
+                  {item.summary}
+                </p>
+              </div>
+
+              <ul className="space-y-2">
+                {item.keyPoints.map((point, j) => (
+                  <li key={j} className="text-sm flex gap-2">
+                    <span className="text-muted-foreground">•</span>
+
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="flex flex-wrap gap-2 items-center">
+                {item.tags.map((tag, j) => (
+                  <Badge key={j} variant="secondary">
+                    {tag}
+                  </Badge>
+                ))}
+
+                <span className="text-xs text-muted-foreground ml-auto">
+                  {item.readingTime} min read
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
         <div ref={bottomRef} />
       </div>
 
@@ -101,24 +129,14 @@ export default function Chat() {
             value={input}
             placeholder="Paste the article text"
             onChange={handleChange}
-            disabled={isBusy}
+            disabled={isLoading}
             onKeyDown={handleKeyDown}
           />
 
-          {status === "error" && (
-            <p className="text-sm text-destructive">{error?.message}</p>
-          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
-          {extractError && (
-            <p className="text-sm text-destructive">{extractError}</p>
-          )}
-
-          <Button onClick={handleSubmit} disabled={isBusy}>
-            {isExtracting
-              ? "Loading article..."
-              : isBusy
-                ? "Processing..."
-                : "Make a summary"}
+          <Button onClick={handleSubmit} disabled={isLoading}>
+            {isLoading ? "Processing..." : "Make a summary"}
           </Button>
         </div>
       </div>
