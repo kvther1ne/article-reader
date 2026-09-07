@@ -1,11 +1,12 @@
 import { openai } from "@ai-sdk/openai";
 import { generateText, Output } from "ai";
 import { summarySchema } from "@/lib/schemas";
+import { prisma } from "@/lib/prisma";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { text }: { text: string } = await req.json();
+  const { text, url }: { text: string; url?: string } = await req.json();
 
   if (!text || text.trim().length < 200) {
     return Response.json(
@@ -23,5 +24,12 @@ export async function POST(req: Request) {
     prompt: `Make a breakdown of the article. Respond in article language.\n\n${text}`,
   });
 
-  return Response.json(result.output);
+  const saved = await prisma.summary.create({
+    data: {
+      ...result.output,
+      url: url ?? null,
+    },
+  });
+
+  return Response.json(saved);
 }
