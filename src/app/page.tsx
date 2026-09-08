@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Trash2 } from "lucide-react";
 import type { Summary } from "@/generated/prisma/client";
 
 export default function Chat() {
@@ -84,6 +85,13 @@ export default function Chat() {
     setInput(e.target.value);
   };
 
+  const handleDelete = async (id: string) => {
+    const res = await fetch(`/api/summaries/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setSummaries((prev) => prev.filter((item) => item.id !== id));
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <h1 className="text-2xl font-semibold">Article Reader</h1>
@@ -104,7 +112,6 @@ export default function Chat() {
                 {item.keyPoints.map((point, j) => (
                   <li key={j} className="flex gap-2 text-sm">
                     <span className="text-muted-foreground">•</span>
-
                     <span>{point}</span>
                   </li>
                 ))}
@@ -120,6 +127,14 @@ export default function Chat() {
                 <span className="text-muted-foreground ml-auto text-xs">
                   {item.readingTime} min read
                 </span>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDelete(item.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </CardContent>
           </Card>
