@@ -27,6 +27,7 @@ export async function POST(req: Request) {
   const saved = await prisma.summary.create({
     data: {
       ...result.output,
+      tags: result.output.tags.map((t) => t.toLowerCase().trim()),
       url: url ?? null,
     },
   });

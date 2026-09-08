@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
 import type { Summary } from "@/generated/prisma/client";
 
@@ -13,13 +14,28 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summaries, setSummaries] = useState<Summary[]>([]);
+  const [search, setSearch] = useState("");
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+
+  const filtered = summaries.filter((item) => {
+    const q = search.toLowerCase();
+    return (
+      item.title.toLowerCase().includes(q) ||
+      item.summary.toLowerCase().includes(q) ||
+      item.tags.some((tag) => tag.toLowerCase().includes(q))
+    );
+  });
 
   useEffect(() => {
-    fetch("/api/summaries")
+    const url = activeTag
+      ? `/api/summaries?tag=${encodeURIComponent(activeTag)}`
+      : "/api/summaries";
+
+    fetch(url)
       .then((res) => res.json())
       .then(setSummaries)
       .catch(() => setError("Failed to load library"));
-  }, []);
+  }, [activeTag]);
 
   const handleSubmit = async () => {
     if (!input.trim()) return;
@@ -96,13 +112,22 @@ export default function Chat() {
     <div className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <h1 className="text-2xl font-semibold">Article Reader</h1>
 
+      <Input
+        placeholder="Search library..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
+      {filtered.length === 0 && summaries.length > 0 && (
+        <p className="text-muted-foreground text-sm">Nothing found</p>
+      )}
+
       <div className="space-y-4 pb-32">
-        {summaries.map((item) => (
+        {filtered.map((item) => (
           <Card key={item.id}>
             <CardContent className="space-y-4 p-6">
               <div>
                 <h2 className="text-lg font-semibold">{item.title}</h2>
-
                 <p className="text-muted-foreground mt-1 text-sm">
                   {item.summary}
                 </p>
@@ -119,7 +144,12 @@ export default function Chat() {
 
               <div className="flex flex-wrap items-center gap-2">
                 {item.tags.map((tag, j) => (
-                  <Badge key={j} variant="secondary">
+                  <Badge
+                    key={j}
+                    variant={activeTag === tag ? "default" : "secondary"}
+                    className="cursor-pointer"
+                    onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                  >
                     {tag}
                   </Badge>
                 ))}
