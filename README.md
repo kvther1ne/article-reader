@@ -99,6 +99,7 @@ Worth revisiting if tag management becomes a feature.
 - [x] URL-based article extraction
 - [x] Structured output with Zod
 - [x] Saved library persisted in Postgres
-- [ ] Search and tag filtering
+- [x] Search and tag filtering, and delete
+- [x] Article pages with server components
 - [ ] Q&A over the saved library (RAG)
 - [ ] Deploy

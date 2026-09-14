@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
 import type { Summary } from "@/generated/prisma/client";
+import Link from "next/link";
 
 export default function Chat() {
   const [input, setInput] = useState("");
@@ -127,7 +128,9 @@ export default function Chat() {
           <Card key={item.id}>
             <CardContent className="space-y-4 p-6">
               <div>
-                <h2 className="text-lg font-semibold">{item.title}</h2>
+                <Link href={`/library/${item.id}`}>
+                  <h2 className="text-lg font-semibold">{item.title}</h2>
+                </Link>
                 <p className="text-muted-foreground mt-1 text-sm">
                   {item.summary}
                 </p>
