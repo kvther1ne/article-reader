@@ -1,10 +1,12 @@
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
+  extensions = [vector]
 }
 
 model Summary {
@@ -16,4 +18,6 @@ model Summary {
   tags        String[]
   readingTime Int
   createdAt   DateTime @default(now())
+
+  embedding   Unsupported("vector(1536)")?
 }

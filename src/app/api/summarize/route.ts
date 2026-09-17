@@ -2,6 +2,7 @@ import { openai } from "@ai-sdk/openai";
 import { generateText, Output } from "ai";
 import { summarySchema } from "@/lib/schemas";
 import { prisma } from "@/lib/prisma";
+import { getEmbedding } from "@/lib/embeddings";
 
 export const maxDuration = 30;
 
@@ -31,6 +32,20 @@ export async function POST(req: Request) {
       url: url ?? null,
     },
   });
+
+  const textForEmbedding = [
+    saved.title,
+    saved.summary,
+    ...saved.keyPoints,
+  ].join("\n");
+
+  const vector = await getEmbedding(textForEmbedding);
+
+  await prisma.$executeRaw`
+    UPDATE "Summary"
+    SET embedding = ${JSON.stringify(vector)}::vector
+    WHERE id = ${saved.id}
+  `;
 
   return Response.json(saved);
 }

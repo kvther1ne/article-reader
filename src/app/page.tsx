@@ -111,7 +111,14 @@ export default function Chat() {
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 p-6">
-      <h1 className="text-2xl font-semibold">Article Reader</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Article Reader</h1>
+        <Link href="/ask">
+          <Button variant="outline" size="sm">
+            Ask your library
+          </Button>
+        </Link>
+      </div>
 
       <Input
         placeholder="Search library..."
